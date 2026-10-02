@@ -11,8 +11,14 @@ Conduit opens and maintains port-forwarding sessions through AWS Systems Manager
 
 Conduit uses an SSM-managed bastion to reach services in a private network:
 
-```text
-Your machine:3306 → SSM session → bastion:3306 → socat → RDS:3306
+```mermaid
+flowchart LR
+    local["Your machine<br/>localhost:3306"]
+    bastion["SSM-managed bastion<br/>:3306"]
+    rds["RDS<br/>:3306"]
+
+    local -->|SSM port forwarding| bastion
+    bastion -->|socat| rds
 ```
 
 The bastion must be managed by AWS Systems Manager, be able to reach the RDS instance, and have `socat` installed. Before starting Conduit, run this on the bastion (replace the hostname and port as needed):
