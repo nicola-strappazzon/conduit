@@ -18,8 +18,6 @@ func (fakeSessionClient) StartSession(context.Context, aws.SessionParams) (*aws.
 
 func (fakeSessionClient) PluginArgs(*aws.Session) []string { return nil }
 
-func (fakeSessionClient) TerminateSession(context.Context, string) error { return nil }
-
 func TestRootCommandFlags(t *testing.T) {
 	cmd := newRootCmd()
 
@@ -62,8 +60,36 @@ func TestRootCommandShowsHelpWithoutFlags(t *testing.T) {
 	}
 }
 
+func TestLineLogWriter(t *testing.T) {
+	var lines []string
+	writer := newLineLogWriter(func(line string) {
+		lines = append(lines, line)
+	})
+
+	if _, err := writer.Write([]byte("Starting session\nPort 3306")); err != nil {
+		t.Fatalf("write first chunk: %v", err)
+	}
+	if _, err := writer.Write([]byte(" opened\n\nWaiting for connections...")); err != nil {
+		t.Fatalf("write second chunk: %v", err)
+	}
+	writer.Flush()
+
+	want := []string{
+		"Starting session",
+		"Port 3306 opened",
+		"Waiting for connections...",
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("logged lines = %#v, want %#v", lines, want)
+	}
+	for i := range want {
+		if lines[i] != want[i] {
+			t.Errorf("line %d = %q, want %q", i, lines[i], want[i])
+		}
+	}
+}
+
 func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
-	var terminatedID string
 	deps := conduitDependencies{
 		newClient: func(_ context.Context, profile, region string) (sessionClient, error) {
 			if profile != "test-profile" || region != "test-region" {
@@ -83,14 +109,11 @@ func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
 			}
 			return nil
 		},
-		runSession: func(_ context.Context, _ sessionClient, params aws.SessionParams, _ options) (string, error) {
+		runSession: func(_ context.Context, _ sessionClient, params aws.SessionParams, _ options) error {
 			if params.Target != "i-test" || params.Parameters["portNumber"][0] != "3307" {
 				t.Fatalf("unexpected session parameters: %#v", params)
 			}
-			return "session-1", errors.New("plugin exited")
-		},
-		terminateSession: func(_ sessionClient, sessionID string) {
-			terminatedID = sessionID
+			return errors.New("plugin exited")
 		},
 		wait: func(context.Context, time.Duration) error {
 			t.Fatal("wait called with reconnect disabled")
@@ -110,8 +133,5 @@ func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
 	}, deps)
 	if err != nil {
 		t.Fatalf("run conduit: %v", err)
-	}
-	if terminatedID != "session-1" {
-		t.Errorf("terminated session = %q, want session-1", terminatedID)
 	}
 }

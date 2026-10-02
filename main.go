@@ -11,6 +11,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -18,11 +19,14 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"conduit/aws"
 	"conduit/browser"
+
 	"github.com/spf13/cobra"
 )
 
@@ -42,16 +46,61 @@ type options struct {
 type sessionClient interface {
 	StartSession(context.Context, aws.SessionParams) (*aws.Session, error)
 	PluginArgs(*aws.Session) []string
-	TerminateSession(context.Context, string) error
 }
 
 type conduitDependencies struct {
-	newClient        func(context.Context, string, string) (sessionClient, error)
-	ensureSSOLogin   func(context.Context, string, string, func(string) error) error
-	openURL          func(string, string) error
-	runSession       func(context.Context, sessionClient, aws.SessionParams, options) (string, error)
-	terminateSession func(sessionClient, string)
-	wait             func(context.Context, time.Duration) error
+	newClient      func(context.Context, string, string) (sessionClient, error)
+	ensureSSOLogin func(context.Context, string, string, func(string) error) error
+	openURL        func(string, string) error
+	runSession     func(context.Context, sessionClient, aws.SessionParams, options) error
+	wait           func(context.Context, time.Duration) error
+}
+
+// lineLogWriter turns a process stream into individual application log lines.
+// A process may split one line across several Write calls, so incomplete lines
+// are buffered until a newline arrives.
+type lineLogWriter struct {
+	mu      sync.Mutex
+	pending []byte
+	logLine func(string)
+}
+
+func newLineLogWriter(logLine func(string)) *lineLogWriter {
+	return &lineLogWriter{logLine: logLine}
+}
+
+func (w *lineLogWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.pending = append(w.pending, p...)
+	w.writeCompleteLines()
+	return len(p), nil
+}
+
+func (w *lineLogWriter) Flush() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.log(strings.TrimSpace(string(w.pending)))
+	w.pending = nil
+}
+
+func (w *lineLogWriter) writeCompleteLines() {
+	for {
+		newline := bytes.IndexByte(w.pending, '\n')
+		if newline == -1 {
+			return
+		}
+		w.log(strings.TrimSpace(string(w.pending[:newline])))
+		w.pending = w.pending[newline+1:]
+	}
+}
+
+func (w *lineLogWriter) log(line string) {
+	if line != "" {
+		w.logLine(line)
+	}
 }
 
 func main() {
@@ -105,10 +154,7 @@ func productionDependencies() conduitDependencies {
 		ensureSSOLogin: aws.EnsureSSOLogin,
 		openURL:        browser.Open,
 		runSession:     runOnce,
-		terminateSession: func(client sessionClient, sessionID string) {
-			terminateSession(client, sessionID)
-		},
-		wait: waitForReconnect,
+		wait:           waitForReconnect,
 	}
 }
 
@@ -144,12 +190,9 @@ func runConduitWithContext(ctx context.Context, opts options, deps conduitDepend
 			return fmt.Errorf("SSO login: %w", err)
 		}
 
-		sessionID, err := deps.runSession(ctx, client, params, opts)
+		err := deps.runSession(ctx, client, params, opts)
 		if err != nil && !errors.Is(err, context.Canceled) {
-			log.Printf("error: %v", err)
-		}
-		if sessionID != "" {
-			deps.terminateSession(client, sessionID)
+			log.Println(err.Error())
 		}
 
 		if ctx.Err() != nil {
@@ -181,12 +224,11 @@ func waitForReconnect(ctx context.Context, delay time.Duration) error {
 }
 
 // runOnce starts one SSM session and blocks until the session-manager-plugin
-// process exits (connection closed, network drop, or ctx cancellation). It
-// returns the session ID so the caller can terminate it server-side.
-func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams, opts options) (string, error) {
+// process exits (connection closed, network drop, or ctx cancellation).
+func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams, opts options) error {
 	session, err := client.StartSession(ctx, params)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	target := opts.target
@@ -197,26 +239,20 @@ func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams
 
 	cmd := exec.CommandContext(ctx, aws.PluginBinary, client.PluginArgs(session)...)
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	pluginLog := newLineLogWriter(func(line string) { log.Print(line) })
+	cmd.Stdout = pluginLog
+	cmd.Stderr = pluginLog
 
 	err = cmd.Run()
+	pluginLog.Flush()
 	if ctx.Err() != nil {
-		return session.ID, context.Canceled
+		return context.Canceled
 	}
 	if errors.Is(err, exec.ErrNotFound) {
-		return session.ID, fmt.Errorf("%s not found in PATH; install it with: brew install --cask session-manager-plugin", aws.PluginBinary)
+		return fmt.Errorf("%s not found in PATH; install it with: brew install --cask session-manager-plugin", aws.PluginBinary)
 	}
 	if err != nil {
-		return session.ID, fmt.Errorf("%s: %w", aws.PluginBinary, err)
+		return fmt.Errorf("%s: %w", aws.PluginBinary, err)
 	}
-	return session.ID, nil
-}
-
-func terminateSession(client sessionClient, sessionID string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := client.TerminateSession(ctx, sessionID); err != nil {
-		log.Printf("warning: could not terminate session %s server-side: %v", sessionID, err)
-	}
+	return nil
 }

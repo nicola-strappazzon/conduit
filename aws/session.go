@@ -87,13 +87,3 @@ func (c *Client) PluginArgs(s *Session) []string {
 		c.Endpoint(),
 	}
 }
-
-// TerminateSession ends the session server-side. Some roles aren't granted
-// ssm:TerminateSession, in which case this returns an AccessDenied error
-// that callers can treat as non-fatal (the session times out on its own).
-func (c *Client) TerminateSession(ctx context.Context, sessionID string) error {
-	_, err := c.ssm.TerminateSession(ctx, &ssm.TerminateSessionInput{
-		SessionId: aws.String(sessionID),
-	})
-	return err
-}
