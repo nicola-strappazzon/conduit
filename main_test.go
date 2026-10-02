@@ -27,8 +27,8 @@ func TestRootCommandFlags(t *testing.T) {
 		"target":             "",
 		"document":           "AWS-StartPortForwardingSession",
 		"remote-host":        "",
-		"remote-port":        "3306",
-		"local-port":         "3306",
+		"remote-port":        "",
+		"local-port":         "",
 		"reconnect":          "true",
 		"reconnect-delay-ms": "2000",
 		"chrome-profile":     "",
@@ -62,7 +62,7 @@ func TestRootCommandShowsHelpWithoutFlags(t *testing.T) {
 
 func TestRootCommandRequiresTargetWhenFlagsAreProvided(t *testing.T) {
 	cmd := newRootCmd()
-	cmd.SetArgs([]string{"--profile", "test-profile"})
+	cmd.SetArgs([]string{"--profile", "test-profile", "--local-port", "3306", "--remote-port", "3306"})
 
 	err := cmd.Execute()
 	if err == nil || err.Error() != `required flag(s) "target" not set` {

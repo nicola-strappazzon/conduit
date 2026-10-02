@@ -121,8 +121,8 @@ func newRootCmd() *cobra.Command {
 			if cmd.Flags().NFlag() == 0 {
 				return cmd.Help()
 			}
-			if opts.target == "" {
-				return fmt.Errorf("required flag(s) \"target\" not set")
+			if missing := missingRequiredFlags(opts); len(missing) > 0 {
+				return fmt.Errorf("required flag(s) %s not set", strings.Join(missing, ", "))
 			}
 			return runConduit(opts)
 		},
@@ -134,13 +134,27 @@ func newRootCmd() *cobra.Command {
 	flags.StringVar(&opts.target, "target", "", "SSM instance ID (required)")
 	flags.StringVar(&opts.document, "document", "AWS-StartPortForwardingSession", "SSM document")
 	flags.StringVar(&opts.remoteHost, "remote-host", "", "Remote host")
-	flags.StringVar(&opts.remotePort, "remote-port", "3306", "Remote port")
-	flags.StringVar(&opts.localPort, "local-port", "3306", "Local port")
+	flags.StringVar(&opts.remotePort, "remote-port", "", "Remote port (required)")
+	flags.StringVar(&opts.localPort, "local-port", "", "Local port (required)")
 	flags.BoolVar(&opts.reconnect, "reconnect", true, "Reconnect automatically")
 	flags.IntVar(&opts.reconnectMS, "reconnect-delay-ms", 2000, "Reconnect delay (ms)")
 	flags.StringVar(&opts.chromeProfile, "chrome-profile", "", "Chrome profile for SSO")
 
 	return cmd
+}
+
+func missingRequiredFlags(opts options) []string {
+	var missing []string
+	if opts.target == "" {
+		missing = append(missing, `"target"`)
+	}
+	if opts.localPort == "" {
+		missing = append(missing, `"local-port"`)
+	}
+	if opts.remotePort == "" {
+		missing = append(missing, `"remote-port"`)
+	}
+	return missing
 }
 
 func runConduit(opts options) error {
