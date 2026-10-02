@@ -1,4 +1,4 @@
-package main
+package conduit
 
 import (
 	"context"
@@ -47,8 +47,8 @@ func TestLineLogWriter(t *testing.T) {
 	}
 }
 
-func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
-	deps := conduitDependencies{
+func TestRunWithInjectedDependencies(t *testing.T) {
+	deps := dependencies{
 		newClient: func(_ context.Context, profile, region string) (sessionClient, error) {
 			if profile != "test-profile" || region != "test-region" {
 				t.Fatalf("client config = %q, %q", profile, region)
@@ -79,7 +79,7 @@ func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
 		},
 	}
 
-	err := runConduitWithContext(context.Background(), config.Config{
+	err := runWithContext(context.Background(), config.Config{
 		Profile:       "test-profile",
 		Region:        "test-region",
 		Target:        "i-test",
