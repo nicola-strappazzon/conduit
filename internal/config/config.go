@@ -19,6 +19,7 @@ type Config struct {
 	Reconnect     bool
 	ReconnectMS   int
 	ChromeProfile string
+	Debug         bool
 }
 
 // Defaults returns the configuration used before command-line flags are read.

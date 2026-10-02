@@ -36,6 +36,18 @@ tasks:
     cmds:
       - go run .
 
+  demo:
+    desc: Record the terminal demo
+    deps: [build]
+    vars:
+      TAPE: '{{default "docs/demo.tape" .TAPE}}'
+    cmds:
+      - test -n "$MYSQL_USER"
+      - test -n "$MYSQL_PWD"
+      - test -n "$PROFILE"
+      - test -n "$CHROME"
+      - vhs {{.TAPE}}
+
   clean:
     desc: Remove build cache
     cmds:

@@ -42,6 +42,7 @@ func NewRootCmd(run RunFunc) *cobra.Command {
 	flags.BoolVar(&opts.Reconnect, "reconnect", opts.Reconnect, "Reconnect automatically")
 	flags.IntVar(&opts.ReconnectMS, "reconnect-delay-ms", opts.ReconnectMS, "Reconnect delay (ms)")
 	flags.StringVar(&opts.ChromeProfile, "chrome-profile", opts.ChromeProfile, "Chrome profile for SSO")
+	flags.BoolVar(&opts.Debug, "debug", opts.Debug, "Show session details")
 	cmd.AddCommand(version.NewCommand())
 
 	return cmd

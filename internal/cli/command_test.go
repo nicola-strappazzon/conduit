@@ -22,6 +22,7 @@ func TestRootCommandFlags(t *testing.T) {
 		"reconnect":          "true",
 		"reconnect-delay-ms": "2000",
 		"chrome-profile":     "",
+		"debug":              "false",
 	}
 
 	for name, defaultValue := range want {

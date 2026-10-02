@@ -5,6 +5,8 @@
 
 Conduit opens and maintains port-forwarding sessions through AWS Systems Manager. It can complete an SSO device login in your browser and reconnect automatically when a session ends.
 
+![Demo](assets/demo.gif)
+
 [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage)
 
 ## How it works
@@ -90,6 +92,18 @@ conduit \
 Use `--reconnect=false` to exit after the session ends instead of reconnecting.
 
 Press `Ctrl+C` to stop Conduit and close the local tunnel. AWS can retain the Session Manager record until its configured timeout.
+
+## Recording the demo
+
+Edit `docs/demo.tape` as needed, then generate the GIF:
+
+```bash
+MYSQL_USER='your-user' \
+MYSQL_PWD='your-password' \
+PROFILE='your-aws-profile' \
+CHROME='your-chrome-profile' \
+task demo
+```
 
 ## License
 

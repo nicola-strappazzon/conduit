@@ -76,7 +76,6 @@ func runWithContext(ctx context.Context, cfg config.Config, deps dependencies) e
 
 	for {
 		if ctx.Err() != nil {
-			log.Println("shutting down")
 			return nil
 		}
 
@@ -90,17 +89,17 @@ func runWithContext(ctx context.Context, cfg config.Config, deps dependencies) e
 		}
 
 		if ctx.Err() != nil {
-			log.Println("shutting down")
 			return nil
 		}
 		if !cfg.Reconnect {
 			return nil
 		}
 
-		log.Printf("session ended, reconnecting in %dms...", cfg.ReconnectMS)
+		if cfg.Debug {
+			log.Printf("session ended, reconnecting in %dms...", cfg.ReconnectMS)
+		}
 		if err := deps.wait(ctx, time.Duration(cfg.ReconnectMS)*time.Millisecond); err != nil {
 			if errors.Is(err, context.Canceled) {
-				log.Println("shutting down")
 				return nil
 			}
 			return err
@@ -127,11 +126,21 @@ func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams
 	if cfg.RemoteHost != "" {
 		target = cfg.RemoteHost
 	}
-	log.Printf("session %s: forwarding localhost:%s -> %s:%s", session.ID, cfg.LocalPort, target, cfg.RemotePort)
+	if cfg.Debug {
+		log.Printf("forwarding localhost:%s -> %s:%s", cfg.LocalPort, target, cfg.RemotePort)
+	}
 
 	cmd := exec.CommandContext(ctx, aws.PluginBinary, client.PluginArgs(session)...)
 	cmd.Stdin = os.Stdin
-	pluginLog := newLineLogWriter(func(line string) { log.Print(line) })
+	pluginLog := newLineLogWriter(func(line string) {
+		if cfg.Debug {
+			log.Print(line)
+			return
+		}
+		if normalLine := normalPluginLogLine(line); normalLine != "" {
+			log.Print(normalLine)
+		}
+	})
 	cmd.Stdout = pluginLog
 	cmd.Stderr = pluginLog
 
@@ -191,4 +200,23 @@ func (w *lineLogWriter) log(line string) {
 	if line != "" {
 		w.logLine(line)
 	}
+}
+
+func normalPluginLogLine(line string) string {
+	if line == "Waiting for connections..." {
+		return line
+	}
+	if strings.HasPrefix(line, "Connection accepted for session") {
+		return "Connection accepted"
+	}
+
+	lowercaseLine := strings.ToLower(line)
+	if strings.Contains(lowercaseLine, "error") ||
+		strings.Contains(lowercaseLine, "failed") ||
+		strings.Contains(lowercaseLine, "denied") ||
+		strings.Contains(lowercaseLine, "unable") {
+		return line
+	}
+
+	return ""
 }

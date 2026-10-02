@@ -39,6 +39,23 @@ func TestLineLogWriter(t *testing.T) {
 	assert.Equal(t, want, lines)
 }
 
+func TestNormalPluginLogLine(t *testing.T) {
+	tests := []struct {
+		line string
+		want string
+	}{
+		{line: "Waiting for connections...", want: "Waiting for connections..."},
+		{line: "Connection accepted for session [user@example.com-session]", want: "Connection accepted"},
+		{line: "api error AccessDeniedException", want: "api error AccessDeniedException"},
+		{line: "connection failed", want: "connection failed"},
+		{line: "Starting session with SessionId: user@example.com-session", want: ""},
+	}
+
+	for _, test := range tests {
+		assert.Equal(t, test.want, normalPluginLogLine(test.line), test.line)
+	}
+}
+
 func TestRunWithInjectedDependencies(t *testing.T) {
 	deps := dependencies{
 		newClient: func(_ context.Context, profile, region string) (sessionClient, error) {
