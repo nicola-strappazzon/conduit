@@ -19,9 +19,13 @@ import (
 // to opening and tearing down SSM port-forwarding sessions.
 type Client struct {
 	cfg     aws.Config
-	ssm     *ssm.Client
+	ssm     ssmAPI
 	Profile string
 	Region  string
+}
+
+type ssmAPI interface {
+	StartSession(context.Context, *ssm.StartSessionInput, ...func(*ssm.Options)) (*ssm.StartSessionOutput, error)
 }
 
 // NewClient loads AWS credentials for the given profile/region. It does not

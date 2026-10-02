@@ -8,6 +8,7 @@ import (
 
 	"conduit/internal/aws"
 	"conduit/internal/config"
+	"github.com/stretchr/testify/assert"
 )
 
 type fakeSessionClient struct{}
@@ -24,12 +25,10 @@ func TestLineLogWriter(t *testing.T) {
 		lines = append(lines, line)
 	})
 
-	if _, err := writer.Write([]byte("Starting session\nPort 3306")); err != nil {
-		t.Fatalf("write first chunk: %v", err)
-	}
-	if _, err := writer.Write([]byte(" opened\n\nWaiting for connections...")); err != nil {
-		t.Fatalf("write second chunk: %v", err)
-	}
+	_, err := writer.Write([]byte("Starting session\nPort 3306"))
+	assert.NoError(t, err)
+	_, err = writer.Write([]byte(" opened\n\nWaiting for connections..."))
+	assert.NoError(t, err)
 	writer.Flush()
 
 	want := []string{
@@ -37,44 +36,33 @@ func TestLineLogWriter(t *testing.T) {
 		"Port 3306 opened",
 		"Waiting for connections...",
 	}
-	if len(lines) != len(want) {
-		t.Fatalf("logged lines = %#v, want %#v", lines, want)
-	}
-	for i := range want {
-		if lines[i] != want[i] {
-			t.Errorf("line %d = %q, want %q", i, lines[i], want[i])
-		}
-	}
+	assert.Equal(t, want, lines)
 }
 
 func TestRunWithInjectedDependencies(t *testing.T) {
 	deps := dependencies{
 		newClient: func(_ context.Context, profile, region string) (sessionClient, error) {
-			if profile != "test-profile" || region != "test-region" {
-				t.Fatalf("client config = %q, %q", profile, region)
-			}
+			assert.Equal(t, "test-profile", profile)
+			assert.Equal(t, "test-region", region)
 			return fakeSessionClient{}, nil
 		},
 		ensureSSOLogin: func(_ context.Context, profile, region string, openURL func(string) error) error {
-			if profile != "test-profile" || region != "test-region" {
-				t.Fatalf("SSO config = %q, %q", profile, region)
-			}
+			assert.Equal(t, "test-profile", profile)
+			assert.Equal(t, "test-region", region)
 			return openURL("https://example.com/device")
 		},
 		openURL: func(url, chromeProfile string) error {
-			if url != "https://example.com/device" || chromeProfile != "Profile 1" {
-				t.Fatalf("browser config = %q, %q", url, chromeProfile)
-			}
+			assert.Equal(t, "https://example.com/device", url)
+			assert.Equal(t, "Profile 1", chromeProfile)
 			return nil
 		},
 		runSession: func(_ context.Context, _ sessionClient, params aws.SessionParams, _ config.Config) error {
-			if params.Target != "i-test" || params.Parameters["portNumber"][0] != "3307" {
-				t.Fatalf("unexpected session parameters: %#v", params)
-			}
+			assert.Equal(t, "i-test", params.Target)
+			assert.Equal(t, []string{"3307"}, params.Parameters["portNumber"])
 			return errors.New("plugin exited")
 		},
 		wait: func(context.Context, time.Duration) error {
-			t.Fatal("wait called with reconnect disabled")
+			assert.Fail(t, "wait called with reconnect disabled")
 			return nil
 		},
 	}
@@ -89,7 +77,5 @@ func TestRunWithInjectedDependencies(t *testing.T) {
 		ChromeProfile: "Profile 1",
 		Reconnect:     false,
 	}, deps)
-	if err != nil {
-		t.Fatalf("run conduit: %v", err)
-	}
+	assert.NoError(t, err)
 }

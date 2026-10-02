@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.0
 	github.com/spf13/cobra v1.10.2
+	github.com/stretchr/testify v1.12.1
 )
 
 require (
@@ -24,4 +25,5 @@ require (
 	github.com/aws/smithy-go v1.28.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )

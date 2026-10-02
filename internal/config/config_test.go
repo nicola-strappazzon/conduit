@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestValidate(t *testing.T) {
 	valid := Defaults()
@@ -22,11 +26,10 @@ func TestValidate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.cfg.Validate()
-			if test.want == "" && err != nil {
-				t.Fatalf("validate: %v", err)
-			}
-			if test.want != "" && (err == nil || err.Error() != test.want) {
-				t.Fatalf("validate error = %v, want %q", err, test.want)
+			if test.want == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, test.want)
 			}
 		})
 	}
