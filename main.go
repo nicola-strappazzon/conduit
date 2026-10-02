@@ -5,9 +5,9 @@
 //	    --parameters '{"portNumber":["<remote>"],"localPortNumber":["<local>"]}'
 //
 // All AWS-specific logic (credentials, SSM sessions, SSO login) lives in
-// the aws package; this file only handles CLI flags, the reconnect loop,
-// exec'ing session-manager-plugin, and picking which browser/profile opens
-// the SSO login page.
+// the aws package; this file handles the reconnect loop, exec'ing
+// session-manager-plugin, and picking which browser/profile opens the SSO
+// login page.
 package main
 
 import (
@@ -26,9 +26,8 @@ import (
 
 	"conduit/aws"
 	"conduit/browser"
+	"conduit/cli"
 	"conduit/config"
-
-	"github.com/spf13/cobra"
 )
 
 type sessionClient interface {
@@ -92,33 +91,9 @@ func (w *lineLogWriter) log(line string) {
 }
 
 func main() {
-	if err := newRootCmd().Execute(); err != nil {
+	if err := cli.NewRootCmd(runConduit).Execute(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func newRootCmd() *cobra.Command {
-	opts := config.Defaults()
-	cmd := &cobra.Command{
-		Use:           "conduit",
-		Short:         "A CLI that simplifies AWS SSM port forwarding.",
-		Long:          "Conduit opens and maintains AWS SSM port-forwarding connections. It handles SSO login and can reconnect automatically when a session ends.",
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if cmd.Flags().NFlag() == 0 {
-				return cmd.Help()
-			}
-			if err := opts.Validate(); err != nil {
-				return err
-			}
-			return runConduit(opts)
-		},
-	}
-
-	opts.BindFlags(cmd.Flags())
-
-	return cmd
 }
 
 func runConduit(opts config.Config) error {

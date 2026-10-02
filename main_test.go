@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -18,72 +17,6 @@ func (fakeSessionClient) StartSession(context.Context, aws.SessionParams) (*aws.
 }
 
 func (fakeSessionClient) PluginArgs(*aws.Session) []string { return nil }
-
-func TestRootCommandFlags(t *testing.T) {
-	cmd := newRootCmd()
-
-	want := map[string]string{
-		"profile":            "name",
-		"region":             "eu-central-1",
-		"target":             "",
-		"document":           "AWS-StartPortForwardingSession",
-		"remote-host":        "",
-		"remote-port":        "",
-		"local-port":         "",
-		"reconnect":          "true",
-		"reconnect-delay-ms": "2000",
-		"chrome-profile":     "",
-	}
-
-	for name, defaultValue := range want {
-		flag := cmd.Flags().Lookup(name)
-		if flag == nil {
-			t.Errorf("flag --%s is not registered", name)
-			continue
-		}
-		if flag.DefValue != defaultValue {
-			t.Errorf("flag --%s default = %q, want %q", name, flag.DefValue, defaultValue)
-		}
-	}
-}
-
-func TestRootCommandShowsHelpWithoutFlags(t *testing.T) {
-	cmd := newRootCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetArgs(nil)
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute command: %v", err)
-	}
-	if !bytes.Contains(output.Bytes(), []byte("Usage:")) {
-		t.Errorf("help output does not contain usage: %q", output.String())
-	}
-}
-
-func TestRootCommandRequiresTargetWhenFlagsAreProvided(t *testing.T) {
-	cmd := newRootCmd()
-	cmd.SetArgs([]string{"--profile", "test-profile", "--local-port", "3306", "--remote-port", "3306"})
-
-	err := cmd.Execute()
-	if err == nil || err.Error() != `required flag(s) "target" not set` {
-		t.Fatalf("execute command error = %v", err)
-	}
-}
-
-func TestRootCommandValidatesPorts(t *testing.T) {
-	cmd := newRootCmd()
-	cmd.SetArgs([]string{
-		"--target", "i-bastion",
-		"--local-port", "not-a-port",
-		"--remote-port", "3306",
-	})
-
-	err := cmd.Execute()
-	if err == nil || err.Error() != "--local-port must be an integer between 1 and 65535" {
-		t.Fatalf("execute command error = %v", err)
-	}
-}
 
 func TestLineLogWriter(t *testing.T) {
 	var lines []string

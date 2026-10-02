@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/pflag"
 )
 
 // Config holds the values accepted by the Conduit command line.
@@ -32,20 +30,6 @@ func Defaults() Config {
 		Reconnect:   true,
 		ReconnectMS: 2000,
 	}
-}
-
-// BindFlags registers Conduit's flags and binds them to c.
-func (c *Config) BindFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&c.Profile, "profile", c.Profile, "AWS profile")
-	flags.StringVar(&c.Region, "region", c.Region, "AWS region")
-	flags.StringVar(&c.Target, "target", c.Target, "SSM instance ID (required)")
-	flags.StringVar(&c.Document, "document", c.Document, "SSM document")
-	flags.StringVar(&c.RemoteHost, "remote-host", c.RemoteHost, "Remote host")
-	flags.StringVar(&c.RemotePort, "remote-port", c.RemotePort, "Remote port (required)")
-	flags.StringVar(&c.LocalPort, "local-port", c.LocalPort, "Local port (required)")
-	flags.BoolVar(&c.Reconnect, "reconnect", c.Reconnect, "Reconnect automatically")
-	flags.IntVar(&c.ReconnectMS, "reconnect-delay-ms", c.ReconnectMS, "Reconnect delay (ms)")
-	flags.StringVar(&c.ChromeProfile, "chrome-profile", c.ChromeProfile, "Chrome profile for SSO")
 }
 
 // Validate checks the values that must be supplied for a port-forwarding session.
