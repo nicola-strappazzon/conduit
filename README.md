@@ -14,6 +14,7 @@ Conduit is a CLI for AWS SSM port forwarding. It opens the SSO login page when n
 - Reach private services with one command.
 - No public SSH port or SSH keys.
 - Handle AWS SSO in your browser.
+- Start and stop the bastion `socat` listener for you.
 - Reconnect automatically.
 
 ## How it works
