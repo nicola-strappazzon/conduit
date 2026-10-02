@@ -24,7 +24,7 @@ func TestRootCommandFlags(t *testing.T) {
 	want := map[string]string{
 		"profile":            "name",
 		"region":             "eu-central-1",
-		"target":             "i-0d89d20fd1db52703",
+		"target":             "",
 		"document":           "AWS-StartPortForwardingSession",
 		"remote-host":        "",
 		"remote-port":        "3306",
@@ -57,6 +57,16 @@ func TestRootCommandShowsHelpWithoutFlags(t *testing.T) {
 	}
 	if !bytes.Contains(output.Bytes(), []byte("Usage:")) {
 		t.Errorf("help output does not contain usage: %q", output.String())
+	}
+}
+
+func TestRootCommandRequiresTargetWhenFlagsAreProvided(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"--profile", "test-profile"})
+
+	err := cmd.Execute()
+	if err == nil || err.Error() != `required flag(s) "target" not set` {
+		t.Fatalf("execute command error = %v", err)
 	}
 }
 

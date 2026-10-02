@@ -121,6 +121,9 @@ func newRootCmd() *cobra.Command {
 			if cmd.Flags().NFlag() == 0 {
 				return cmd.Help()
 			}
+			if opts.target == "" {
+				return fmt.Errorf("required flag(s) \"target\" not set")
+			}
 			return runConduit(opts)
 		},
 	}
@@ -128,7 +131,7 @@ func newRootCmd() *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.profile, "profile", "name", "AWS profile")
 	flags.StringVar(&opts.region, "region", "eu-central-1", "AWS region")
-	flags.StringVar(&opts.target, "target", "i-0d89d20fd1db52703", "SSM instance ID")
+	flags.StringVar(&opts.target, "target", "", "SSM instance ID (required)")
 	flags.StringVar(&opts.document, "document", "AWS-StartPortForwardingSession", "SSM document")
 	flags.StringVar(&opts.remoteHost, "remote-host", "", "Remote host")
 	flags.StringVar(&opts.remotePort, "remote-port", "3306", "Remote port")
