@@ -70,6 +70,20 @@ func TestRootCommandRequiresTargetWhenFlagsAreProvided(t *testing.T) {
 	}
 }
 
+func TestRootCommandValidatesPorts(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{
+		"--target", "i-bastion",
+		"--local-port", "not-a-port",
+		"--remote-port", "3306",
+	})
+
+	err := cmd.Execute()
+	if err == nil || err.Error() != "--local-port must be an integer between 1 and 65535" {
+		t.Fatalf("execute command error = %v", err)
+	}
+}
+
 func TestLineLogWriter(t *testing.T) {
 	var lines []string
 	writer := newLineLogWriter(func(line string) {

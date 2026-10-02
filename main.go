@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -124,6 +125,12 @@ func newRootCmd() *cobra.Command {
 			if missing := missingRequiredFlags(opts); len(missing) > 0 {
 				return fmt.Errorf("required flag(s) %s not set", strings.Join(missing, ", "))
 			}
+			if err := validatePort("local-port", opts.localPort); err != nil {
+				return err
+			}
+			if err := validatePort("remote-port", opts.remotePort); err != nil {
+				return err
+			}
 			return runConduit(opts)
 		},
 	}
@@ -155,6 +162,14 @@ func missingRequiredFlags(opts options) []string {
 		missing = append(missing, `"remote-port"`)
 	}
 	return missing
+}
+
+func validatePort(name, value string) error {
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("--%s must be an integer between 1 and 65535", name)
+	}
+	return nil
 }
 
 func runConduit(opts options) error {
