@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"conduit/internal/cli/version"
 	"conduit/internal/config"
 
 	"github.com/spf13/cobra"
@@ -41,6 +42,7 @@ func NewRootCmd(run RunFunc) *cobra.Command {
 	flags.BoolVar(&opts.Reconnect, "reconnect", opts.Reconnect, "Reconnect automatically")
 	flags.IntVar(&opts.ReconnectMS, "reconnect-delay-ms", opts.ReconnectMS, "Reconnect delay (ms)")
 	flags.StringVar(&opts.ChromeProfile, "chrome-profile", opts.ChromeProfile, "Chrome profile for SSO")
+	cmd.AddCommand(version.NewCommand())
 
 	return cmd
 }

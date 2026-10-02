@@ -22,7 +22,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
+      - -s -w -X conduit/internal/cli/version.VERSION=v{{.Version}}
 
   - id: linux
     binary: conduit
@@ -36,7 +36,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
+      - -s -w -X conduit/internal/cli/version.VERSION=v{{.Version}}
 
 homebrew_casks:
   - name: conduit
