@@ -1,0 +1,68 @@
+version: 2
+
+project_name: conduit
+
+before:
+  hooks:
+    - go mod tidy
+
+release:
+  prerelease: false
+
+builds:
+  - id: macos
+    binary: conduit
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+
+  - id: linux
+    binary: conduit
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+
+homebrew_casks:
+  - name: conduit
+    binaries:
+      - conduit
+    repository:
+      owner: nicola-strappazzon
+      name: homebrew-tap
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: https://github.com/nicola-strappazzon/conduit
+    description: "A CLI that simplifies AWS SSM port forwarding."
+    license: GPL-3.0-only
+
+archives:
+  - formats: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.sha256"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

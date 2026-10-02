@@ -1,0 +1,4 @@
+.task/
+dist/
+.DS_Store
+/conduit
