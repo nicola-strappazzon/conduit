@@ -102,7 +102,3 @@ conduit \
 Use `--reconnect=false` to stop when the session ends.
 
 Press `Ctrl+C` to close the local tunnel. AWS keeps the session record until its timeout.
-
-## License
-
-Licensed under the [GNU General Public License v3.0](LICENSE).
