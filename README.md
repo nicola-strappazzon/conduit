@@ -93,18 +93,6 @@ Use `--reconnect=false` to exit after the session ends instead of reconnecting.
 
 Press `Ctrl+C` to stop Conduit and close the local tunnel. AWS can retain the Session Manager record until its configured timeout.
 
-## Recording the demo
-
-Edit `docs/demo.tape` as needed, then generate the GIF:
-
-```bash
-MYSQL_USER='your-user' \
-MYSQL_PWD='your-password' \
-PROFILE='your-aws-profile' \
-CHROME='your-chrome-profile' \
-task demo
-```
-
 ## License
 
 Conduit is licensed under the [GNU General Public License v3.0](LICENSE).
