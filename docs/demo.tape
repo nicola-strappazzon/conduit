@@ -21,6 +21,7 @@ Ctrl+B
 Type ":resize-pane -t conduit-demo:0.0 -y 12" Enter
 Sleep 500ms
 Show
+Sleep 1s
 Type "conduit --profile $PROFILE --target i-0d89d20fd1db52703 --chrome-profile $CHROME --local-port 3306 --remote-port 3306" Enter
 Sleep 3s
 Ctrl+B
