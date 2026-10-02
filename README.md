@@ -9,6 +9,13 @@ Conduit opens and maintains port-forwarding sessions through AWS Systems Manager
 
 ![Demo](assets/demo.gif)
 
+## Advantages
+
+- Use one simple command for a private service.
+- Connect through SSM without opening inbound SSH or managing SSH keys.
+- Complete AWS SSO login in your browser when needed.
+- Reconnect automatically when a session ends.
+
 ## How it works
 
 Conduit uses an SSM-managed bastion to reach services in a private network:
