@@ -4,7 +4,7 @@ package main
 import (
 	"log"
 
-	"conduit/cli"
+	"conduit/internal/cli"
 	"conduit/internal/conduit"
 )
 

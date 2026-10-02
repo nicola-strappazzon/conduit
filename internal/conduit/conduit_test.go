@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"conduit/aws"
-	"conduit/config"
+	"conduit/internal/aws"
+	"conduit/internal/config"
 )
 
 type fakeSessionClient struct{}

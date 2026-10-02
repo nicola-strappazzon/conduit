@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"conduit/aws"
-	"conduit/browser"
-	"conduit/config"
+	"conduit/internal/aws"
+	"conduit/internal/browser"
+	"conduit/internal/config"
 )
 
 type sessionClient interface {

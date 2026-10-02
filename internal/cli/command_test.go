@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"conduit/config"
+	"conduit/internal/config"
 )
 
 func TestRootCommandFlags(t *testing.T) {

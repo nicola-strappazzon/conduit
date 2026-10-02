@@ -2,7 +2,7 @@
 package cli
 
 import (
-	"conduit/config"
+	"conduit/internal/config"
 
 	"github.com/spf13/cobra"
 )
