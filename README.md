@@ -14,10 +14,10 @@ Conduit uses an SSM-managed bastion to reach services in a private network:
 ```mermaid
 flowchart LR
     local["Your machine<br/>localhost:3306"]
-    bastion["SSM-managed bastion<br/>:3306"]
+    bastion["Bastion<br/>:3306"]
     rds["RDS<br/>:3306"]
 
-    local -->|SSM port forwarding| bastion
+    local -->|SSM protocol| bastion
     bastion -->|socat| rds
 ```
 
