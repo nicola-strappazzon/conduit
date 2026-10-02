@@ -19,7 +19,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -27,22 +26,10 @@ import (
 
 	"conduit/aws"
 	"conduit/browser"
+	"conduit/config"
 
 	"github.com/spf13/cobra"
 )
-
-type options struct {
-	profile       string
-	region        string
-	target        string
-	document      string
-	remoteHost    string
-	localPort     string
-	remotePort    string
-	reconnect     bool
-	reconnectMS   int
-	chromeProfile string
-}
 
 type sessionClient interface {
 	StartSession(context.Context, aws.SessionParams) (*aws.Session, error)
@@ -53,7 +40,7 @@ type conduitDependencies struct {
 	newClient      func(context.Context, string, string) (sessionClient, error)
 	ensureSSOLogin func(context.Context, string, string, func(string) error) error
 	openURL        func(string, string) error
-	runSession     func(context.Context, sessionClient, aws.SessionParams, options) error
+	runSession     func(context.Context, sessionClient, aws.SessionParams, config.Config) error
 	wait           func(context.Context, time.Duration) error
 }
 
@@ -111,7 +98,7 @@ func main() {
 }
 
 func newRootCmd() *cobra.Command {
-	opts := options{}
+	opts := config.Defaults()
 	cmd := &cobra.Command{
 		Use:           "conduit",
 		Short:         "A CLI that simplifies AWS SSM port forwarding.",
@@ -122,57 +109,19 @@ func newRootCmd() *cobra.Command {
 			if cmd.Flags().NFlag() == 0 {
 				return cmd.Help()
 			}
-			if missing := missingRequiredFlags(opts); len(missing) > 0 {
-				return fmt.Errorf("required flag(s) %s not set", strings.Join(missing, ", "))
-			}
-			if err := validatePort("local-port", opts.localPort); err != nil {
-				return err
-			}
-			if err := validatePort("remote-port", opts.remotePort); err != nil {
+			if err := opts.Validate(); err != nil {
 				return err
 			}
 			return runConduit(opts)
 		},
 	}
 
-	flags := cmd.Flags()
-	flags.StringVar(&opts.profile, "profile", "name", "AWS profile")
-	flags.StringVar(&opts.region, "region", "eu-central-1", "AWS region")
-	flags.StringVar(&opts.target, "target", "", "SSM instance ID (required)")
-	flags.StringVar(&opts.document, "document", "AWS-StartPortForwardingSession", "SSM document")
-	flags.StringVar(&opts.remoteHost, "remote-host", "", "Remote host")
-	flags.StringVar(&opts.remotePort, "remote-port", "", "Remote port (required)")
-	flags.StringVar(&opts.localPort, "local-port", "", "Local port (required)")
-	flags.BoolVar(&opts.reconnect, "reconnect", true, "Reconnect automatically")
-	flags.IntVar(&opts.reconnectMS, "reconnect-delay-ms", 2000, "Reconnect delay (ms)")
-	flags.StringVar(&opts.chromeProfile, "chrome-profile", "", "Chrome profile for SSO")
+	opts.BindFlags(cmd.Flags())
 
 	return cmd
 }
 
-func missingRequiredFlags(opts options) []string {
-	var missing []string
-	if opts.target == "" {
-		missing = append(missing, `"target"`)
-	}
-	if opts.localPort == "" {
-		missing = append(missing, `"local-port"`)
-	}
-	if opts.remotePort == "" {
-		missing = append(missing, `"remote-port"`)
-	}
-	return missing
-}
-
-func validatePort(name, value string) error {
-	port, err := strconv.Atoi(value)
-	if err != nil || port < 1 || port > 65535 {
-		return fmt.Errorf("--%s must be an integer between 1 and 65535", name)
-	}
-	return nil
-}
-
-func runConduit(opts options) error {
+func runConduit(opts config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return runConduitWithContext(ctx, opts, productionDependencies())
@@ -190,27 +139,27 @@ func productionDependencies() conduitDependencies {
 	}
 }
 
-func runConduitWithContext(ctx context.Context, opts options, deps conduitDependencies) error {
-	client, err := deps.newClient(ctx, opts.profile, opts.region)
+func runConduitWithContext(ctx context.Context, opts config.Config, deps conduitDependencies) error {
+	client, err := deps.newClient(ctx, opts.Profile, opts.Region)
 	if err != nil {
 		return err
 	}
 
 	parameters := map[string][]string{
-		"portNumber":      {opts.remotePort},
-		"localPortNumber": {opts.localPort},
+		"portNumber":      {opts.RemotePort},
+		"localPortNumber": {opts.LocalPort},
 	}
-	if opts.remoteHost != "" {
-		parameters["host"] = []string{opts.remoteHost}
+	if opts.RemoteHost != "" {
+		parameters["host"] = []string{opts.RemoteHost}
 	}
 
 	params := aws.SessionParams{
-		Target:     opts.target,
-		Document:   opts.document,
+		Target:     opts.Target,
+		Document:   opts.Document,
 		Parameters: parameters,
 	}
 
-	openURL := func(url string) error { return deps.openURL(url, opts.chromeProfile) }
+	openURL := func(url string) error { return deps.openURL(url, opts.ChromeProfile) }
 
 	for {
 		if ctx.Err() != nil {
@@ -218,7 +167,7 @@ func runConduitWithContext(ctx context.Context, opts options, deps conduitDepend
 			return nil
 		}
 
-		if err := deps.ensureSSOLogin(ctx, opts.profile, opts.region, openURL); err != nil {
+		if err := deps.ensureSSOLogin(ctx, opts.Profile, opts.Region, openURL); err != nil {
 			return fmt.Errorf("SSO login: %w", err)
 		}
 
@@ -231,12 +180,12 @@ func runConduitWithContext(ctx context.Context, opts options, deps conduitDepend
 			log.Println("shutting down")
 			return nil
 		}
-		if !opts.reconnect {
+		if !opts.Reconnect {
 			return nil
 		}
 
-		log.Printf("session ended, reconnecting in %dms...", opts.reconnectMS)
-		if err := deps.wait(ctx, time.Duration(opts.reconnectMS)*time.Millisecond); err != nil {
+		log.Printf("session ended, reconnecting in %dms...", opts.ReconnectMS)
+		if err := deps.wait(ctx, time.Duration(opts.ReconnectMS)*time.Millisecond); err != nil {
 			if errors.Is(err, context.Canceled) {
 				log.Println("shutting down")
 				return nil
@@ -257,17 +206,17 @@ func waitForReconnect(ctx context.Context, delay time.Duration) error {
 
 // runOnce starts one SSM session and blocks until the session-manager-plugin
 // process exits (connection closed, network drop, or ctx cancellation).
-func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams, opts options) error {
+func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams, opts config.Config) error {
 	session, err := client.StartSession(ctx, params)
 	if err != nil {
 		return err
 	}
 
-	target := opts.target
-	if opts.remoteHost != "" {
-		target = opts.remoteHost
+	target := opts.Target
+	if opts.RemoteHost != "" {
+		target = opts.RemoteHost
 	}
-	log.Printf("session %s: forwarding localhost:%s -> %s:%s", session.ID, opts.localPort, target, opts.remotePort)
+	log.Printf("session %s: forwarding localhost:%s -> %s:%s", session.ID, opts.LocalPort, target, opts.RemotePort)
 
 	cmd := exec.CommandContext(ctx, aws.PluginBinary, client.PluginArgs(session)...)
 	cmd.Stdin = os.Stdin

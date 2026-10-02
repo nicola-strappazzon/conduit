@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"conduit/aws"
+	"conduit/config"
 )
 
 type fakeSessionClient struct{}
@@ -133,7 +134,7 @@ func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
 			}
 			return nil
 		},
-		runSession: func(_ context.Context, _ sessionClient, params aws.SessionParams, _ options) error {
+		runSession: func(_ context.Context, _ sessionClient, params aws.SessionParams, _ config.Config) error {
 			if params.Target != "i-test" || params.Parameters["portNumber"][0] != "3307" {
 				t.Fatalf("unexpected session parameters: %#v", params)
 			}
@@ -145,15 +146,15 @@ func TestConduitFlowUsesInjectedDependencies(t *testing.T) {
 		},
 	}
 
-	err := runConduitWithContext(context.Background(), options{
-		profile:       "test-profile",
-		region:        "test-region",
-		target:        "i-test",
-		document:      "AWS-StartPortForwardingSession",
-		localPort:     "3306",
-		remotePort:    "3307",
-		chromeProfile: "Profile 1",
-		reconnect:     false,
+	err := runConduitWithContext(context.Background(), config.Config{
+		Profile:       "test-profile",
+		Region:        "test-region",
+		Target:        "i-test",
+		Document:      "AWS-StartPortForwardingSession",
+		LocalPort:     "3306",
+		RemotePort:    "3307",
+		ChromeProfile: "Profile 1",
+		Reconnect:     false,
 	}, deps)
 	if err != nil {
 		t.Fatalf("run conduit: %v", err)
