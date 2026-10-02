@@ -5,20 +5,20 @@
 
 [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage)
 
-Conduit opens and maintains port-forwarding sessions through AWS Systems Manager. It can complete an SSO device login in your browser and reconnect automatically when a session ends.
+Conduit is a CLI for AWS SSM port forwarding. It opens the SSO login page when needed and reconnects when a session ends.
 
 ![Demo](assets/demo.gif)
 
 ## Advantages
 
-- Use one simple command for a private service.
-- Connect through SSM without opening inbound SSH or managing SSH keys.
-- Complete AWS SSO login in your browser when needed.
-- Reconnect automatically when a session ends.
+- Reach private services with one command.
+- No public SSH port or SSH keys.
+- Handle AWS SSO in your browser.
+- Reconnect automatically.
 
 ## How it works
 
-Conduit uses an SSM-managed bastion to reach services in a private network:
+Conduit sends traffic through an SSM-managed bastion to a private service:
 
 ```mermaid
 flowchart LR
@@ -30,51 +30,54 @@ flowchart LR
     bastion -->|socat| rds
 ```
 
-The bastion must be managed by AWS Systems Manager, be able to reach the RDS instance, and have `socat` installed. Before starting Conduit, run this on the bastion (replace the hostname and port as needed):
+The bastion needs SSM, access to the RDS instance, and `socat`. Run this on the bastion before using Conduit. Change the hostname and port as needed:
 
 ```bash
 sudo nohup socat TCP-LISTEN:3306,fork,reuseaddr TCP:example.cxvub4jf47su.eu-central-1.rds.amazonaws.com:3306 >/tmp/socat-3306.log 2>&1 &
 ```
 
-This starts a listener on the bastion's port `3306` and forwards its traffic to the RDS endpoint. Its output is written to `/tmp/socat-3306.log`.
+This listens on port `3306` and sends traffic to the RDS endpoint. Logs go to `/tmp/socat-3306.log`.
 
 ## Requirements
 
-- An AWS profile configured for Systems Manager, with permission to start SSM sessions.
-- The [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) available in your `PATH`.
-- An SSM-managed bastion that can reach the target service, with `socat` installed.
-- Go, using the version declared in `go.mod`, when building from source.
+- An AWS profile allowed to start SSM sessions.
+- The [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) in your `PATH`.
+- An SSM-managed bastion that can reach the service.
+- `socat` on the bastion when using the first example below.
+- Go, using the version in `go.mod`, when building from source.
 
 ## Installation
 
 ### macOS
 
-Install Conduit from the Homebrew tap:
+Install with Homebrew:
 
 ```bash
 brew install nicola-strappazzon/tap/conduit
 xattr -d com.apple.quarantine /opt/homebrew/bin/conduit
 ```
 
+Run the second command only if macOS blocks the app.
+
 ### From source
 
-For local development or platforms without a Homebrew release:
+Build from source:
 
 ```bash
 task build
 ```
 
-Move `conduit` to a directory in your `PATH` if you want to use it globally.
+Move `conduit` to a directory in your `PATH` to run it from anywhere.
 
 ## Usage
 
-Run the command without flags to see all available options:
+Run without flags to see all options:
 
 ```bash
 conduit
 ```
 
-After starting `socat` on the bastion, forward the local port through it:
+After starting `socat` on the bastion, open the tunnel:
 
 ```bash
 conduit \
@@ -84,7 +87,7 @@ conduit \
   --local-port 3306
 ```
 
-Alternatively, Conduit can forward directly to a host reachable from the bastion without `socat`:
+Or connect directly to a host that the bastion can reach. This does not need `socat`:
 
 ```bash
 conduit \
@@ -96,10 +99,10 @@ conduit \
   --local-port 3306
 ```
 
-Use `--reconnect=false` to exit after the session ends instead of reconnecting.
+Use `--reconnect=false` to stop when the session ends.
 
-Press `Ctrl+C` to stop Conduit and close the local tunnel. AWS can retain the Session Manager record until its configured timeout.
+Press `Ctrl+C` to close the local tunnel. AWS keeps the session record until its timeout.
 
 ## License
 
-Conduit is licensed under the [GNU General Public License v3.0](LICENSE).
+Licensed under the [GNU General Public License v3.0](LICENSE).
