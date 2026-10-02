@@ -3,11 +3,11 @@
 [![Test](https://github.com/nicola-strappazzon/conduit/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nicola-strappazzon/conduit/actions/workflows/test.yml)
 [![Latest Release](https://img.shields.io/github/release/nicola-strappazzon/conduit)](https://github.com/nicola-strappazzon/conduit/releases)
 
+[Requirements](#requirements) · [Installation](#installation) · [Usage](#usage)
+
 Conduit opens and maintains port-forwarding sessions through AWS Systems Manager. It can complete an SSO device login in your browser and reconnect automatically when a session ends.
 
 ![Demo](assets/demo.gif)
-
-[Requirements](#requirements) · [Installation](#installation) · [Usage](#usage)
 
 ## How it works
 
