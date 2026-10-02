@@ -65,3 +65,18 @@ func TestStartSessionReturnsSSMError(t *testing.T) {
 
 	assert.ErrorContains(t, err, "StartSession: access denied")
 }
+
+func TestStartSessionOmitsEmptyDocument(t *testing.T) {
+	ssmClient := &fakeSSMClient{output: &ssm.StartSessionOutput{}}
+	client := Client{ssm: ssmClient}
+
+	session, err := client.StartSession(context.Background(), SessionParams{Target: "i-bastion"})
+
+	assert.NoError(t, err)
+	assert.Nil(t, ssmClient.input.DocumentName)
+	assert.JSONEq(t, `{"Target":"i-bastion"}`, string(session.request))
+}
+
+func TestInteractiveCommandDocument(t *testing.T) {
+	assert.Equal(t, "AWS-StartInteractiveCommand", InteractiveCommandDocument)
+}

@@ -78,6 +78,13 @@ func TestRunWithInjectedDependencies(t *testing.T) {
 			assert.Equal(t, []string{"3307"}, params.Parameters["portNumber"])
 			return errors.New("plugin exited")
 		},
+		ensureSocat: func(_ context.Context, _ sessionClient, target, host, port string) error {
+			assert.Equal(t, "i-test", target)
+			assert.Equal(t, "database.internal", host)
+			assert.Equal(t, "3307", port)
+			return nil
+		},
+		stopSocat: func(context.Context, sessionClient, string, string) error { return nil },
 		wait: func(context.Context, time.Duration) error {
 			assert.Fail(t, "wait called with reconnect disabled")
 			return nil
@@ -91,8 +98,41 @@ func TestRunWithInjectedDependencies(t *testing.T) {
 		Document:      "AWS-StartPortForwardingSession",
 		LocalPort:     "3306",
 		RemotePort:    "3307",
+		Host:          "database.internal",
 		ChromeProfile: "Profile 1",
 		Reconnect:     false,
 	}, deps)
 	assert.NoError(t, err)
+}
+
+func TestRunEnsuresSocatBeforeForwarding(t *testing.T) {
+	var ensured bool
+	deps := dependencies{
+		newClient: func(context.Context, string, string) (sessionClient, error) {
+			return fakeSessionClient{}, nil
+		},
+		ensureSSOLogin: func(context.Context, string, string, func(string) error) error { return nil },
+		openURL:        func(string, string) error { return nil },
+		ensureSocat: func(_ context.Context, _ sessionClient, target, host, port string) error {
+			ensured = true
+			assert.Equal(t, "i-bastion", target)
+			assert.Equal(t, "database.internal", host)
+			assert.Equal(t, "3306", port)
+			return nil
+		},
+		stopSocat: func(_ context.Context, _ sessionClient, target, port string) error {
+			assert.Equal(t, "i-bastion", target)
+			assert.Equal(t, "3306", port)
+			return nil
+		},
+		runSession: func(context.Context, sessionClient, aws.SessionParams, config.Config) error { return nil },
+		wait:       func(context.Context, time.Duration) error { return nil },
+	}
+
+	err := runWithContext(context.Background(), config.Config{
+		Target: "i-bastion", LocalPort: "3306", RemotePort: "3306", Host: "database.internal", Reconnect: false,
+	}, deps)
+
+	assert.NoError(t, err)
+	assert.True(t, ensured)
 }

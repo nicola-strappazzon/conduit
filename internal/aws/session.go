@@ -15,6 +15,10 @@ import (
 // is what actually moves bytes.
 const PluginBinary = "session-manager-plugin"
 
+// InteractiveCommandDocument starts an interactive command on an SSM-managed
+// target. Conduit uses it to run the bastion's socat setup shell.
+const InteractiveCommandDocument = "AWS-StartInteractiveCommand"
+
 // SessionParams describes the SSM session to start.
 type SessionParams struct {
 	Target     string
@@ -34,11 +38,15 @@ type Session struct {
 // payloads session-manager-plugin expects, in the same wire format the AWS
 // CLI passes to it.
 func (c *Client) StartSession(ctx context.Context, p SessionParams) (*Session, error) {
-	out, err := c.ssm.StartSession(ctx, &ssm.StartSessionInput{
-		Target:       aws.String(p.Target),
-		DocumentName: aws.String(p.Document),
-		Parameters:   p.Parameters,
-	})
+	input := &ssm.StartSessionInput{
+		Target:     aws.String(p.Target),
+		Parameters: p.Parameters,
+	}
+	if p.Document != "" {
+		input.DocumentName = aws.String(p.Document)
+	}
+
+	out, err := c.ssm.StartSession(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("StartSession: %w", err)
 	}
@@ -60,8 +68,8 @@ func (c *Client) StartSession(ctx context.Context, p SessionParams) (*Session, e
 
 	request, err := json.Marshal(struct {
 		Target       string              `json:"Target"`
-		DocumentName string              `json:"DocumentName"`
-		Parameters   map[string][]string `json:"Parameters"`
+		DocumentName string              `json:"DocumentName,omitempty"`
+		Parameters   map[string][]string `json:"Parameters,omitempty"`
 	}{
 		Target:       p.Target,
 		DocumentName: p.Document,

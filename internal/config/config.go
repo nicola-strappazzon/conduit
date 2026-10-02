@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -13,13 +14,13 @@ type Config struct {
 	Region        string
 	Target        string
 	Document      string
-	RemoteHost    string
 	LocalPort     string
 	RemotePort    string
 	Reconnect     bool
 	ReconnectMS   int
 	ChromeProfile string
 	Debug         bool
+	Host          string
 }
 
 // Defaults returns the configuration used before command-line flags are read.
@@ -41,7 +42,13 @@ func (c Config) Validate() error {
 	if err := validatePort("local-port", c.LocalPort); err != nil {
 		return err
 	}
-	return validatePort("remote-port", c.RemotePort)
+	if err := validatePort("remote-port", c.RemotePort); err != nil {
+		return err
+	}
+	if !hostnamePattern.MatchString(c.Host) {
+		return fmt.Errorf("--host must be a hostname or IP address")
+	}
+	return nil
 }
 
 func (c Config) missingRequiredFlags() []string {
@@ -55,6 +62,9 @@ func (c Config) missingRequiredFlags() []string {
 	if c.RemotePort == "" {
 		missing = append(missing, `"remote-port"`)
 	}
+	if c.Host == "" {
+		missing = append(missing, `"host"`)
+	}
 	return missing
 }
 
@@ -65,3 +75,5 @@ func validatePort(name, value string) error {
 	}
 	return nil
 }
+
+var hostnamePattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$`)

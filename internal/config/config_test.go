@@ -11,6 +11,7 @@ func TestValidate(t *testing.T) {
 	valid.Target = "i-bastion"
 	valid.LocalPort = "3306"
 	valid.RemotePort = "5432"
+	valid.Host = "database.internal"
 
 	tests := []struct {
 		name string
@@ -18,9 +19,10 @@ func TestValidate(t *testing.T) {
 		want string
 	}{
 		{name: "valid", cfg: valid},
-		{name: "missing values", cfg: Defaults(), want: `required flag(s) "target", "local-port", "remote-port" not set`},
-		{name: "non-numeric port", cfg: Config{Target: "i-bastion", LocalPort: "invalid", RemotePort: "3306"}, want: "--local-port must be an integer between 1 and 65535"},
-		{name: "port outside range", cfg: Config{Target: "i-bastion", LocalPort: "65536", RemotePort: "3306"}, want: "--local-port must be an integer between 1 and 65535"},
+		{name: "missing values", cfg: Defaults(), want: `required flag(s) "target", "local-port", "remote-port", "host" not set`},
+		{name: "non-numeric port", cfg: Config{Target: "i-bastion", LocalPort: "invalid", RemotePort: "3306", Host: "database.internal"}, want: "--local-port must be an integer between 1 and 65535"},
+		{name: "port outside range", cfg: Config{Target: "i-bastion", LocalPort: "65536", RemotePort: "3306", Host: "database.internal"}, want: "--local-port must be an integer between 1 and 65535"},
+		{name: "invalid host", cfg: Config{Target: "i-bastion", LocalPort: "3306", RemotePort: "3306", Host: "database;internal"}, want: "--host must be a hostname or IP address"},
 	}
 
 	for _, test := range tests {

@@ -16,13 +16,13 @@ func TestRootCommandFlags(t *testing.T) {
 		"region":             "eu-central-1",
 		"target":             "",
 		"document":           "AWS-StartPortForwardingSession",
-		"remote-host":        "",
 		"remote-port":        "",
 		"local-port":         "",
 		"reconnect":          "true",
 		"reconnect-delay-ms": "2000",
 		"chrome-profile":     "",
 		"debug":              "false",
+		"host":               "",
 	}
 
 	for name, defaultValue := range want {
@@ -51,12 +51,12 @@ func TestRootCommandValidatesConfiguration(t *testing.T) {
 	}{
 		{
 			name: "missing target",
-			args: []string{"--profile", "test-profile", "--local-port", "3306", "--remote-port", "3306"},
+			args: []string{"--profile", "test-profile", "--host", "database.internal", "--local-port", "3306", "--remote-port", "3306"},
 			want: `required flag(s) "target" not set`,
 		},
 		{
 			name: "invalid port",
-			args: []string{"--target", "i-bastion", "--local-port", "not-a-port", "--remote-port", "3306"},
+			args: []string{"--target", "i-bastion", "--host", "database.internal", "--local-port", "not-a-port", "--remote-port", "3306"},
 			want: "--local-port must be an integer between 1 and 65535",
 		},
 	}

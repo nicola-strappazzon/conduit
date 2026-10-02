@@ -30,20 +30,24 @@ flowchart LR
     bastion -->|socat| rds
 ```
 
-The bastion needs SSM, access to the RDS instance, and `socat`. Run this on the bastion before using Conduit. Change the hostname and port as needed:
+The bastion needs SSM, access to the RDS instance, `socat`, and `sudo`.
+
+Conduit starts or reuses `socat` before it opens the tunnel. The same `--remote-port` is used on the bastion and the service.
+
+When Conduit exits normally, or after `Ctrl+C`, it stops the `socat` listener for that port.
+
+It runs this command on the bastion:
 
 ```bash
-sudo nohup socat TCP-LISTEN:3306,fork,reuseaddr TCP:example.cxvub4jf47su.eu-central-1.rds.amazonaws.com:3306 >/tmp/socat-3306.log 2>&1 &
+sudo nohup socat TCP-LISTEN:3306,fork,reuseaddr TCP:example.cxvub4jf47su.eu-central-1.rds.amazonaws.com:3306 </dev/null >/tmp/socat-3306.log 2>&1 &
 ```
-
-This listens on port `3306` and sends traffic to the RDS endpoint. Logs go to `/tmp/socat-3306.log`.
 
 ## Requirements
 
 - An AWS profile allowed to start SSM sessions.
 - The [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) in your `PATH`.
 - An SSM-managed bastion that can reach the service.
-- `socat` on the bastion when using the first example below.
+- `socat` and `sudo` on the bastion.
 - Go, using the version in `go.mod`, when building from source.
 
 ## Installation
@@ -77,26 +81,15 @@ Run without flags to see all options:
 conduit
 ```
 
-After starting `socat` on the bastion, open the tunnel:
+Conduit starts `socat` and then opens the tunnel:
 
 ```bash
 conduit \
   --profile my-profile \
   --target i-bastion \
   --remote-port 3306 \
-  --local-port 3306
-```
-
-Or connect directly to a host that the bastion can reach. This does not need `socat`:
-
-```bash
-conduit \
-  --profile my-profile \
-  --target i-0123456789abcdef0 \
-  --document AWS-StartPortForwardingSessionToRemoteHost \
-  --remote-host database.internal \
-  --remote-port 3306 \
-  --local-port 3306
+  --local-port 3306 \
+  --host database.internal
 ```
 
 Use `--reconnect=false` to stop when the session ends.
