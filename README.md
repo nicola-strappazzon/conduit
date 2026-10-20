@@ -95,4 +95,8 @@ conduit \
 
 Use `--reconnect=false` to stop when the session ends.
 
+### Headless servers
+
+The SSO login uses the device authorization flow, so the server does not need a browser. When there is no display (no `DISPLAY` or `WAYLAND_DISPLAY` on Linux, or an SSH session), or when you pass `--no-browser`, Conduit only prints the login URL and code. Open the URL on any device, such as your laptop or phone, and approve the login. The tunnel starts once you approve it.
+
 Press `Ctrl+C` to close the local tunnel. AWS keeps the session record until its timeout.

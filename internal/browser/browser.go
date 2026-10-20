@@ -42,6 +42,19 @@ func Open(url, chromeProfile string) error {
 	return cmd.Start()
 }
 
+// Available reports whether a graphical browser can be opened from this
+// process. Linux and BSD need an X11 or Wayland display. On macOS and
+// Windows, an SSH session would open the browser on the remote machine's
+// screen, which nobody is looking at.
+func Available() bool {
+	switch runtime.GOOS {
+	case "darwin", "windows":
+		return os.Getenv("SSH_CONNECTION") == "" && os.Getenv("SSH_TTY") == ""
+	default:
+		return os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+	}
+}
+
 // resolveChromeProfileDir maps a Chrome profile's directory name, display
 // name, or account email to its actual profile directory (e.g. "Profile 7"),
 // by reading Chrome's Local State file. If it can't resolve a match, it

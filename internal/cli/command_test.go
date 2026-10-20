@@ -21,6 +21,7 @@ func TestRootCommandFlags(t *testing.T) {
 		"reconnect":          "true",
 		"reconnect-delay-ms": "2000",
 		"chrome-profile":     "",
+		"no-browser":         "false",
 		"debug":              "false",
 		"host":               "",
 	}

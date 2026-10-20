@@ -27,6 +27,8 @@ import (
 // openURL is called with the verification URL the user must open to
 // authorize the device; this package has no opinion on browsers, chrome
 // profiles, or operating systems — that's entirely the caller's concern.
+// A nil openURL only prints the URL and code, so the device can be
+// authorized from any other machine.
 func EnsureSSOLogin(ctx context.Context, profile, region string, openURL func(string) error) error {
 	sharedCfg, err := config.LoadSharedConfigProfile(ctx, profile)
 	if err != nil {
@@ -106,11 +108,17 @@ func performDeviceLogin(ctx context.Context, startURL, region, cacheKey string, 
 	}
 
 	verificationURL := aws.ToString(auth.VerificationUriComplete)
-	log.Printf("opening browser to authorize this device: %s", verificationURL)
-	log.Printf("if it doesn't open automatically, visit %s and enter code: %s",
-		aws.ToString(auth.VerificationUri), aws.ToString(auth.UserCode))
-	if err := openURL(verificationURL); err != nil {
-		log.Printf("could not open browser automatically: %v", err)
+	if openURL == nil {
+		log.Printf("open this URL on any device to authorize this login: %s", verificationURL)
+		log.Printf("or visit %s and enter code: %s",
+			aws.ToString(auth.VerificationUri), aws.ToString(auth.UserCode))
+	} else {
+		log.Printf("opening browser to authorize this device: %s", verificationURL)
+		log.Printf("if it doesn't open automatically, visit %s and enter code: %s",
+			aws.ToString(auth.VerificationUri), aws.ToString(auth.UserCode))
+		if err := openURL(verificationURL); err != nil {
+			log.Printf("could not open browser automatically: %v", err)
+		}
 	}
 
 	interval := time.Duration(auth.Interval) * time.Second

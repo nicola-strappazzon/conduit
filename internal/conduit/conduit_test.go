@@ -73,6 +73,7 @@ func TestRunWithInjectedDependencies(t *testing.T) {
 			assert.Equal(t, "Profile 1", chromeProfile)
 			return nil
 		},
+		browserAvailable: func() bool { return true },
 		runSession: func(_ context.Context, _ sessionClient, params aws.SessionParams, _ config.Config) error {
 			assert.Equal(t, "i-test", params.Target)
 			assert.Equal(t, []string{"3307"}, params.Parameters["portNumber"])
@@ -111,8 +112,9 @@ func TestRunEnsuresSocatBeforeForwarding(t *testing.T) {
 		newClient: func(context.Context, string, string) (sessionClient, error) {
 			return fakeSessionClient{}, nil
 		},
-		ensureSSOLogin: func(context.Context, string, string, func(string) error) error { return nil },
-		openURL:        func(string, string) error { return nil },
+		ensureSSOLogin:   func(context.Context, string, string, func(string) error) error { return nil },
+		openURL:          func(string, string) error { return nil },
+		browserAvailable: func() bool { return true },
 		ensureSocat: func(_ context.Context, _ sessionClient, target, host, port string) error {
 			ensured = true
 			assert.Equal(t, "i-bastion", target)
@@ -135,4 +137,44 @@ func TestRunEnsuresSocatBeforeForwarding(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, ensured)
+}
+
+func TestRunSkipsBrowserWhenUnavailable(t *testing.T) {
+	tests := []struct {
+		name      string
+		available bool
+		noBrowser bool
+	}{
+		{name: "headless", available: false},
+		{name: "no-browser flag", available: true, noBrowser: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			deps := dependencies{
+				newClient: func(context.Context, string, string) (sessionClient, error) {
+					return fakeSessionClient{}, nil
+				},
+				ensureSSOLogin: func(_ context.Context, _, _ string, openURL func(string) error) error {
+					assert.Nil(t, openURL)
+					return nil
+				},
+				openURL: func(string, string) error {
+					assert.Fail(t, "openURL called without a browser")
+					return nil
+				},
+				browserAvailable: func() bool { return test.available },
+				ensureSocat:      func(context.Context, sessionClient, string, string, string) error { return nil },
+				stopSocat:        func(context.Context, sessionClient, string, string) error { return nil },
+				runSession:       func(context.Context, sessionClient, aws.SessionParams, config.Config) error { return nil },
+				wait:             func(context.Context, time.Duration) error { return nil },
+			}
+
+			err := runWithContext(context.Background(), config.Config{
+				Target: "i-bastion", LocalPort: "3306", RemotePort: "3306", Host: "database.internal",
+				ChromeProfile: "Profile 1", NoBrowser: test.noBrowser,
+			}, deps)
+			assert.NoError(t, err)
+		})
+	}
 }

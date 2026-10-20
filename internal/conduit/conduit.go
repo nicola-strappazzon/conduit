@@ -30,13 +30,14 @@ type sessionClient interface {
 }
 
 type dependencies struct {
-	newClient      func(context.Context, string, string) (sessionClient, error)
-	ensureSSOLogin func(context.Context, string, string, func(string) error) error
-	openURL        func(string, string) error
-	runSession     func(context.Context, sessionClient, aws.SessionParams, config.Config) error
-	ensureSocat    func(context.Context, sessionClient, string, string, string) error
-	stopSocat      func(context.Context, sessionClient, string, string) error
-	wait           func(context.Context, time.Duration) error
+	newClient        func(context.Context, string, string) (sessionClient, error)
+	ensureSSOLogin   func(context.Context, string, string, func(string) error) error
+	openURL          func(string, string) error
+	browserAvailable func() bool
+	runSession       func(context.Context, sessionClient, aws.SessionParams, config.Config) error
+	ensureSocat      func(context.Context, sessionClient, string, string, string) error
+	stopSocat        func(context.Context, sessionClient, string, string) error
+	wait             func(context.Context, time.Duration) error
 }
 
 // Run opens the tunnel and reconnects according to cfg.
@@ -51,12 +52,13 @@ func productionDependencies() dependencies {
 		newClient: func(ctx context.Context, profile, region string) (sessionClient, error) {
 			return aws.NewClient(ctx, profile, region)
 		},
-		ensureSSOLogin: aws.EnsureSSOLogin,
-		openURL:        browser.Open,
-		runSession:     runOnce,
-		ensureSocat:    ensureSocat,
-		stopSocat:      stopSocat,
-		wait:           waitForReconnect,
+		ensureSSOLogin:   aws.EnsureSSOLogin,
+		openURL:          browser.Open,
+		browserAvailable: browser.Available,
+		runSession:       runOnce,
+		ensureSocat:      ensureSocat,
+		stopSocat:        stopSocat,
+		wait:             waitForReconnect,
 	}
 }
 
@@ -85,7 +87,10 @@ func runWithContext(ctx context.Context, cfg config.Config, deps dependencies) e
 		Parameters: parameters,
 	}
 
-	openURL := func(url string) error { return deps.openURL(url, cfg.ChromeProfile) }
+	var openURL func(string) error
+	if !cfg.NoBrowser && deps.browserAvailable() {
+		openURL = func(url string) error { return deps.openURL(url, cfg.ChromeProfile) }
+	}
 
 	for {
 		if ctx.Err() != nil {
