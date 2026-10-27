@@ -37,6 +37,7 @@ func NewRootCmd(run RunFunc) *cobra.Command {
 	flags.StringVar(&opts.Target, "target", opts.Target, "SSM instance ID (required)")
 	flags.StringVar(&opts.Document, "document", opts.Document, "SSM document")
 	flags.StringVar(&opts.RemotePort, "remote-port", opts.RemotePort, "Remote port (required)")
+	flags.StringVar(&opts.ListenAddress, "listen-address", opts.ListenAddress, "Local IP address to listen on")
 	flags.StringVar(&opts.LocalPort, "local-port", opts.LocalPort, "Local port (required)")
 	flags.BoolVar(&opts.Reconnect, "reconnect", opts.Reconnect, "Reconnect automatically")
 	flags.IntVar(&opts.ReconnectMS, "reconnect-delay-ms", opts.ReconnectMS, "Reconnect delay (ms)")

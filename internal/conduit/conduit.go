@@ -211,6 +211,20 @@ func waitForReconnect(ctx context.Context, delay time.Duration) error {
 }
 
 func runOnce(ctx context.Context, client sessionClient, params aws.SessionParams, cfg config.Config) error {
+	if cfg.ListenAddress != "" && cfg.ListenAddress != "127.0.0.1" {
+		forward, err := newLocalForward(ctx, cfg.ListenAddress, cfg.LocalPort)
+		if err != nil {
+			return err
+		}
+		defer forward.Close()
+		parameters := make(map[string][]string, len(params.Parameters))
+		for key, value := range params.Parameters {
+			parameters[key] = value
+		}
+		parameters["localPortNumber"] = []string{forward.targetPort}
+		params.Parameters = parameters
+		log.Printf("listening on %s", forward.listener.Addr())
+	}
 	session, err := client.StartSession(ctx, params)
 	if err != nil {
 		return err

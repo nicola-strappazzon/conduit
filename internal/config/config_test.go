@@ -19,6 +19,7 @@ func TestValidate(t *testing.T) {
 		want string
 	}{
 		{name: "valid", cfg: valid},
+		{name: "invalid listen address", cfg: Config{Target: "i-bastion", LocalPort: "3306", RemotePort: "3306", Host: "db.internal", ListenAddress: "invalid"}, want: "--listen-address must be an IP address"},
 		{name: "missing values", cfg: Defaults(), want: `required flag(s) "target", "local-port", "remote-port", "host" not set`},
 		{name: "non-numeric port", cfg: Config{Target: "i-bastion", LocalPort: "invalid", RemotePort: "3306", Host: "database.internal"}, want: "--local-port must be an integer between 1 and 65535"},
 		{name: "port outside range", cfg: Config{Target: "i-bastion", LocalPort: "65536", RemotePort: "3306", Host: "database.internal"}, want: "--local-port must be an integer between 1 and 65535"},

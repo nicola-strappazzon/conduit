@@ -13,6 +13,7 @@ func TestRootCommandFlags(t *testing.T) {
 
 	want := map[string]string{
 		"profile":            "name",
+		"listen-address":     "127.0.0.1",
 		"region":             "eu-central-1",
 		"target":             "",
 		"document":           "AWS-StartPortForwardingSession",
@@ -70,4 +71,12 @@ func TestRootCommandValidatesConfiguration(t *testing.T) {
 			assert.EqualError(t, err, test.want)
 		})
 	}
+}
+
+func TestListenAddressFlag(t *testing.T) {
+	var got config.Config
+	cmd := NewRootCmd(func(c config.Config) error { got = c; return nil })
+	cmd.SetArgs([]string{"--target", "i-bastion", "--host", "db.internal", "--local-port", "3307", "--remote-port", "3306", "--listen-address", "192.168.1.100"})
+	assert.NoError(t, cmd.Execute())
+	assert.Equal(t, "192.168.1.100", got.ListenAddress)
 }

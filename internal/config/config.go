@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ type Config struct {
 	Region        string
 	Target        string
 	Document      string
+	ListenAddress string
 	LocalPort     string
 	RemotePort    string
 	Reconnect     bool
@@ -27,11 +29,12 @@ type Config struct {
 // Defaults returns the configuration used before command-line flags are read.
 func Defaults() Config {
 	return Config{
-		Profile:     "name",
-		Region:      "eu-central-1",
-		Document:    "AWS-StartPortForwardingSession",
-		Reconnect:   true,
-		ReconnectMS: 2000,
+		Profile:       "name",
+		ListenAddress: "127.0.0.1",
+		Region:        "eu-central-1",
+		Document:      "AWS-StartPortForwardingSession",
+		Reconnect:     true,
+		ReconnectMS:   2000,
 	}
 }
 
@@ -45,6 +48,9 @@ func (c Config) Validate() error {
 	}
 	if err := validatePort("remote-port", c.RemotePort); err != nil {
 		return err
+	}
+	if c.ListenAddress != "" && net.ParseIP(c.ListenAddress) == nil {
+		return fmt.Errorf("--listen-address must be an IP address")
 	}
 	if !hostnamePattern.MatchString(c.Host) {
 		return fmt.Errorf("--host must be a hostname or IP address")

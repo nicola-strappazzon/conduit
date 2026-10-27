@@ -100,3 +100,27 @@ Use `--reconnect=false` to stop when the session ends.
 The SSO login uses the device authorization flow, so the server does not need a browser. When there is no display (no `DISPLAY` or `WAYLAND_DISPLAY` on Linux, or an SSH session), or when you pass `--no-browser`, Conduit only prints the login URL and code. Open the URL on any device, such as your laptop or phone, and approve the login. The tunnel starts once you approve it.
 
 Press `Ctrl+C` to close the local tunnel. AWS keeps the session record until its timeout.
+
+### Access from your local network
+
+By default, the tunnel is accessible only from the machine running Conduit.
+To connect from another device, add `--listen-address` with the server's LAN IP:
+
+```bash
+conduit \
+  --profile my-profile \
+  --target i-bastion \
+  --remote-port 3306 \
+  --local-port 3307 \
+  --host database.internal \
+  --listen-address 192.168.1.100 \
+  --no-browser
+```
+
+Connect to `192.168.1.100:3307` from your other device. Conduit forwards that
+listener to the SSM plugin's loopback port and closes active connections when
+the session ends. The listener is reopened when Conduit reconnects.
+
+Use `0.0.0.0` to listen on all IPv4 interfaces, or `::` for IPv6. The address
+must belong to the machine running Conduit. Devices that can reach this port
+can access the forwarded service; its own authentication still applies.
