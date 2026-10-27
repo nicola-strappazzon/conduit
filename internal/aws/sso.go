@@ -40,16 +40,78 @@ func EnsureSSOLogin(ctx context.Context, profile, region string, openURL func(st
 		return nil
 	}
 
+	// Explicitly refresh the cached token for legacy profiles too: the SDK's
+	// default credential chain only installs a token provider for sso_session.
+	path, err := ssocreds.StandardCachedTokenFilepath(cacheKey)
+	if err != nil {
+		return err
+	}
+	oidc := ssooidc.NewFromConfig(aws.Config{Region: ssoRegion})
+	if err := refreshCachedSSOToken(ctx, path, oidc); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		// Missing/expired sessions require user authorization. Network and
+		// service failures must not trigger an unrelated device login.
+		var apiErr interface{ ErrorCode() string }
+		if errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "InvalidGrantException", "InvalidClientException", "UnauthorizedClientException", "ExpiredTokenException":
+			default:
+				return fmt.Errorf("refreshing SSO session: %w", err)
+			}
+		} else if !errors.Is(err, errSSOLoginRequired) {
+			return fmt.Errorf("refreshing SSO session: %w", err)
+		}
+		log.Printf("SSO cached token could not be renewed; checking whether login is required")
+	}
+
 	if err := validateCredentials(ctx, profile, region); err == nil {
 		return nil
 	}
 
-	log.Printf("SSO session for profile %q is missing or expired, starting device login...", profile)
+	log.Printf("SSO session for profile %q requires authorization; starting device login (approve the URL before the code expires)...", profile)
 	if err := performDeviceLogin(ctx, startURL, ssoRegion, cacheKey, openURL); err != nil {
 		return fmt.Errorf("device login: %w", err)
 	}
 
 	return validateCredentials(ctx, profile, region)
+}
+
+var errSSOLoginRequired = errors.New("SSO login required")
+
+func refreshCachedSSOToken(ctx context.Context, path string, client ssocreds.CreateTokenAPIClient) error {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return errSSOLoginRequired
+	}
+	if err != nil {
+		return err
+	}
+	var cached struct {
+		AccessToken  string    `json:"accessToken"`
+		ExpiresAt    time.Time `json:"expiresAt"`
+		RefreshToken string    `json:"refreshToken"`
+		ClientID     string    `json:"clientId"`
+		ClientSecret string    `json:"clientSecret"`
+	}
+	if json.Unmarshal(data, &cached) != nil || cached.AccessToken == "" || cached.ExpiresAt.IsZero() {
+		return errSSOLoginRequired
+	}
+	if time.Now().Before(cached.ExpiresAt) {
+		return nil
+	}
+	if cached.RefreshToken == "" || cached.ClientID == "" || cached.ClientSecret == "" {
+		return errSSOLoginRequired
+	}
+	log.Printf("SSO access token expired; attempting automatic renewal...")
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	_, err = ssocreds.NewSSOTokenProvider(client, path).RetrieveBearerToken(ctx)
+	if err == nil {
+		log.Printf("SSO access token renewed automatically")
+	}
+	return err
 }
 
 func ssoSessionParams(cfg config.SharedConfig) (startURL, region, cacheKey string, ok bool) {
@@ -146,12 +208,15 @@ func performDeviceLogin(ctx context.Context, startURL, region, cacheKey string, 
 		if err != nil {
 			var pending *types.AuthorizationPendingException
 			var slowDown *types.SlowDownException
+			var expired *types.ExpiredTokenException
 			switch {
 			case errors.As(err, &pending):
 				continue
 			case errors.As(err, &slowDown):
 				interval += 5 * time.Second
 				continue
+			case errors.As(err, &expired):
+				return fmt.Errorf("device authorization expired before approval; restart conduit to request a new code: %w", err)
 			default:
 				return fmt.Errorf("CreateToken: %w", err)
 			}
