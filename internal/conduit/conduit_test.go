@@ -178,3 +178,23 @@ func TestRunSkipsBrowserWhenUnavailable(t *testing.T) {
 		})
 	}
 }
+
+func TestRunWithoutSSORefresh(t *testing.T) {
+	sessions := 0
+	cfg := config.Defaults()
+	cfg.NoSSORefresh = true
+	cfg.NoBrowser = true
+	deps := dependencies{
+		newClient: func(context.Context, string, string) (sessionClient, error) { return fakeSessionClient{}, nil },
+		ensureSSOLogin: func(context.Context, string, string, func(string) error) error {
+			t.Fatal("SSO login must not run")
+			return nil
+		},
+		ensureSocat: func(context.Context, sessionClient, string, string, string) error { return nil },
+		stopSocat:   func(context.Context, sessionClient, string, string) error { return nil },
+		runSession:  func(context.Context, sessionClient, aws.SessionParams, config.Config) error { sessions++; return nil },
+		wait:        func(context.Context, time.Duration) error { return context.Canceled },
+	}
+	assert.NoError(t, runWithContext(context.Background(), cfg, deps))
+	assert.Equal(t, 1, sessions)
+}

@@ -44,12 +44,15 @@ type dependencies struct {
 func Run(cfg config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	return runWithContext(ctx, cfg, productionDependencies())
+	return runWithContext(ctx, cfg, productionDependencies(cfg))
 }
 
-func productionDependencies() dependencies {
+func productionDependencies(cfg config.Config) dependencies {
 	return dependencies{
 		newClient: func(ctx context.Context, profile, region string) (sessionClient, error) {
+			if cfg.NoSSORefresh {
+				return aws.NewClientWithoutSSORefresh(ctx, profile, region)
+			}
 			return aws.NewClient(ctx, profile, region)
 		},
 		ensureSSOLogin:   aws.EnsureSSOLogin,
@@ -97,8 +100,10 @@ func runWithContext(ctx context.Context, cfg config.Config, deps dependencies) e
 			return nil
 		}
 
-		if err := deps.ensureSSOLogin(ctx, cfg.Profile, cfg.Region, openURL); err != nil {
-			return fmt.Errorf("SSO login: %w", err)
+		if !cfg.NoSSORefresh {
+			if err := deps.ensureSSOLogin(ctx, cfg.Profile, cfg.Region, openURL); err != nil {
+				return fmt.Errorf("SSO login: %w", err)
+			}
 		}
 		if err := deps.ensureSocat(ctx, client, cfg.Target, cfg.Host, cfg.RemotePort); err != nil {
 			return fmt.Errorf("ensuring socat: %w", err)

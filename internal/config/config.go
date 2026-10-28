@@ -22,6 +22,7 @@ type Config struct {
 	ReconnectMS   int
 	ChromeProfile string
 	NoBrowser     bool
+	NoSSORefresh  bool
 	Debug         bool
 	Host          string
 }

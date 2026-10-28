@@ -23,6 +23,7 @@ func TestRootCommandFlags(t *testing.T) {
 		"reconnect-delay-ms": "2000",
 		"chrome-profile":     "",
 		"no-browser":         "false",
+		"no-sso-refresh":     "false",
 		"debug":              "false",
 		"host":               "",
 	}
@@ -79,4 +80,12 @@ func TestListenAddressFlag(t *testing.T) {
 	cmd.SetArgs([]string{"--target", "i-bastion", "--host", "db.internal", "--local-port", "3307", "--remote-port", "3306", "--listen-address", "192.168.1.100"})
 	assert.NoError(t, cmd.Execute())
 	assert.Equal(t, "192.168.1.100", got.ListenAddress)
+}
+
+func TestNoSSORefreshFlag(t *testing.T) {
+	var got config.Config
+	cmd := NewRootCmd(func(c config.Config) error { got = c; return nil })
+	cmd.SetArgs([]string{"--target", "i-bastion", "--host", "db.internal", "--local-port", "3307", "--remote-port", "3306", "--no-sso-refresh"})
+	assert.NoError(t, cmd.Execute())
+	assert.True(t, got.NoSSORefresh)
 }

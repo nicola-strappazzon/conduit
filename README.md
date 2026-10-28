@@ -124,3 +124,20 @@ the session ends. The listener is reopened when Conduit reconnects.
 Use `0.0.0.0` to listen on all IPv4 interfaces, or `::` for IPv6. The address
 must belong to the machine running Conduit. Devices that can reach this port
 can access the forwarded service; its own authentication still applies.
+
+### Sharing an SSO session between instances
+
+When running several Conduit instances with the same SSO session on the same
+machine and user account, leave one instance in the default mode to handle
+SSO login and renewal. Add `--no-sso-refresh` to the other instances:
+
+```bash
+conduit ... --no-sso-refresh
+```
+
+These instances read the shared cached tokens and can obtain temporary AWS
+role credentials, but never refresh the SSO token or start a device login.
+If the shared token expires before the managing instance renews it, credential
+requests fail until it is renewed. This flag does not add a background refresh
+schedule to the managing instance; it checks SSO when opening or reconnecting
+its tunnel.
