@@ -53,16 +53,10 @@ func EnsureSSOLogin(ctx context.Context, profile, region string, openURL func(st
 		}
 		// Missing/expired sessions require user authorization. Network and
 		// service failures must not trigger an unrelated device login.
-		var apiErr interface{ ErrorCode() string }
-		if errors.As(err, &apiErr) {
-			switch apiErr.ErrorCode() {
-			case "InvalidGrantException", "InvalidClientException", "UnauthorizedClientException", "ExpiredTokenException":
-			default:
-				return fmt.Errorf("refreshing SSO session: %w", err)
-			}
-		} else if !errors.Is(err, errSSOLoginRequired) {
+		if !ssoLoginRequired(err) {
 			return fmt.Errorf("refreshing SSO session: %w", err)
 		}
+
 		log.Printf("SSO cached token could not be renewed; checking whether login is required")
 	}
 
@@ -79,6 +73,25 @@ func EnsureSSOLogin(ctx context.Context, profile, region string, openURL func(st
 }
 
 var errSSOLoginRequired = errors.New("SSO login required")
+
+// A rejected cached refresh request can be recovered by registering a new
+// client and asking the user to authorize it. Transport/service failures
+// must remain errors rather than triggering a device login.
+func ssoLoginRequired(err error) bool {
+	if errors.Is(err, errSSOLoginRequired) {
+		return true
+	}
+	var apiErr interface{ ErrorCode() string }
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	switch apiErr.ErrorCode() {
+	case "InvalidGrantException", "InvalidClientException", "UnauthorizedClientException", "ExpiredTokenException", "InvalidRequestException":
+		return true
+	default:
+		return false
+	}
+}
 
 func refreshCachedSSOToken(ctx context.Context, path string, client ssocreds.CreateTokenAPIClient) error {
 	data, err := os.ReadFile(path)

@@ -9,9 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials/ssocreds"
 	"github.com/aws/aws-sdk-go-v2/service/ssooidc"
+	"github.com/aws/aws-sdk-go-v2/service/ssooidc/types"
 	"github.com/stretchr/testify/require"
 
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -141,4 +143,28 @@ func TestLiveSSORefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, refreshCachedSSOToken(ctx, path, ssooidc.NewFromConfig(aws.Config{Region: region})))
 	require.NoError(t, validateCredentials(ctx, profile, region))
+}
+
+func TestSSOLoginRequired(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"invalid refresh request", &types.InvalidRequestException{}, true},
+		{"expired grant", &types.InvalidGrantException{}, true},
+		{"invalid client", &types.InvalidClientException{}, true},
+		{"unauthorized client", &types.UnauthorizedClientException{}, true},
+		{"expired token", &types.ExpiredTokenException{}, true},
+		{"missing token", errSSOLoginRequired, true},
+		{"network failure", errors.New("network unavailable"), false},
+		{"service failure", &types.InternalServerException{}, false},
+		{"throttling", &types.SlowDownException{}, false},
+		{"cancelled", context.Canceled, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, ssoLoginRequired(fmt.Errorf("refresh cached SSO token failed: %w", tt.err)))
+		})
+	}
 }
